@@ -1,0 +1,56 @@
+name: Full Pipeline
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+      - run: pip install pytest ruff
+
+      - run: ruff check .
+      - run: pytest
+
+  deploy-staging:
+    needs: test
+
+    if: github.ref == 'refs/heads/develop'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Staging
+        run: curl "$RENDER_STAGING_HOOK"
+        env:
+          RENDER_STAGING_HOOK: ${{ secrets.RENDER_STAGING_HOOK }}
+
+  deploy-production:
+    needs: test
+
+    if: github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Production
+        run: curl "$RENDER_DEPLOY_HOOK"
+        env:
+          RENDER_PROD_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
